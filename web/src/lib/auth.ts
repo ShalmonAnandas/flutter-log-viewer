@@ -1,36 +1,50 @@
 import { cookies } from 'next/headers';
+import { randomBytes, createHash } from 'crypto';
 
 export interface User {
   username: string;
 }
 
-// Simple in-memory user store (for demo; in production, use a database)
+// Simple in-memory user store (for demo purposes only - not for production use)
 const users: Record<string, string> = {};
 
 const SESSION_COOKIE = 'logviewer_session';
-const sessions: Record<string, string> = {}; // token -> username
+const sessions: Record<string, { username: string; createdAt: number }> = {};
+
+// Session expiry: 7 days
+const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function generateToken(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let token = '';
-  for (let i = 0; i < 64; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  return randomBytes(32).toString('hex');
+}
+
+function hashPassword(password: string): string {
+  return createHash('sha256').update(password).digest('hex');
+}
+
+function cleanExpiredSessions(): void {
+  const now = Date.now();
+  for (const token of Object.keys(sessions)) {
+    if (now - sessions[token].createdAt > SESSION_MAX_AGE_MS) {
+      delete sessions[token];
+    }
   }
-  return token;
 }
 
 export async function getSession(): Promise<User | null> {
+  cleanExpiredSessions();
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  const username = sessions[token];
-  if (!username) return null;
-  return { username };
+  const session = sessions[token];
+  if (!session) return null;
+  return { username: session.username };
 }
 
 export function createSession(username: string): string {
+  cleanExpiredSessions();
   const token = generateToken();
-  sessions[token] = username;
+  sessions[token] = { username, createdAt: Date.now() };
   return token;
 }
 
@@ -40,17 +54,18 @@ export function destroySession(token: string): void {
 
 export function registerUser(username: string, password: string): boolean {
   if (users[username]) return false;
-  users[username] = password;
+  users[username] = hashPassword(password);
   return true;
 }
 
 export function validateUser(username: string, password: string): boolean {
+  const hashed = hashPassword(password);
   // Allow registration on first login attempt
   if (!users[username]) {
-    users[username] = password;
+    users[username] = hashed;
     return true;
   }
-  return users[username] === password;
+  return users[username] === hashed;
 }
 
 export { SESSION_COOKIE };
