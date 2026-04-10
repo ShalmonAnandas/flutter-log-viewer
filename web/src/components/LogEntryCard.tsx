@@ -54,10 +54,6 @@ interface Base64Image {
 
 function extractBase64Images(body: string): Base64Image[] {
   const images: Base64Image[] = [];
-  const dataUriPattern = 'data:image\\/(?:jpeg|jpg|png);base64,[A-Za-z0-9+/=\\s\\\\/]{120,}';
-  const jpegPattern = '\\/9j\\/[A-Za-z0-9+/=\\s\\\\/]{120,}';
-  const pngPattern = 'iVBOR[A-Za-z0-9+/=\\s\\\\/]{120,}';
-  const baseImagePattern = `(?:${dataUriPattern}|${jpegPattern}|${pngPattern})`;
 
   const normalize = (raw: string) => {
     let data = raw
@@ -72,8 +68,8 @@ function extractBase64Images(body: string): Base64Image[] {
   };
 
   const patterns = [
-    new RegExp(`["']?([A-Za-z0-9_.-]+)["']?\\s*[:=]\\s*["']?(${baseImagePattern})["']?`, 'g'),
-    new RegExp(`(?:^|[\\s{[(,\\"])(${baseImagePattern})(?=$|[\\s}\\]),\\"])`, 'g'),
+    /["']?([A-Za-z0-9_.-]+)["']?\s*[:=]\s*["']?(data:image\/(?:jpeg|jpg|png);base64,[A-Za-z0-9+/=\s\\/]{120,}|\/9j\/[A-Za-z0-9+/=\s\\/]{120,}|iVBOR[A-Za-z0-9+/=\s\\/]{120,})["']?/g,
+    /(?:^|[\s{[(,"])(data:image\/(?:jpeg|jpg|png);base64,[A-Za-z0-9+/=\s\\/]{120,}|\/9j\/[A-Za-z0-9+/=\s\\/]{120,}|iVBOR[A-Za-z0-9+/=\s\\/]{120,})(?=$|[\s}\]),"])/g,
   ];
 
   const seen = new Set<string>();
@@ -85,6 +81,7 @@ function extractBase64Images(body: string): Base64Image[] {
       const label = hasLabel ? match[1] : 'image';
       const raw = hasLabel ? match[2] : match[1];
       const data = normalize(raw);
+      if (!data) continue;
       if (data.length < 120) continue;
 
       const key = `${data.slice(0, 80)}:${data.length}`;
