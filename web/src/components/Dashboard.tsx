@@ -68,7 +68,7 @@ function ResponseTimeChart({ times }: { times: { url: string; time: number; stat
               </span>
               <div className="flex-1 h-5 rounded bg-white/5 overflow-hidden relative">
                 <div className={`h-full rounded ${color} opacity-80 transition-all duration-500`} style={{ width: `${Math.max(pct, 2)}%` }}></div>
-                 <span className="absolute inset-0 flex items-center px-2 text-[10px] font-mono text-slate-700 truncate">
+                 <span className="absolute inset-0 flex items-center px-2 text-[10px] font-mono text-white truncate">
                   {endpoint}
                 </span>
               </div>
