@@ -9,7 +9,7 @@ import TimelineView from './TimelineView';
 import Header from './Header';
 
 type Tab = 'dashboard' | 'logs' | 'timeline';
-type FilterType = 'all' | 'request' | 'response' | 'error' | 'lifecycle' | 'heartbeat';
+type FilterType = 'all' | 'request' | 'response' | 'error' | 'lifecycle' | 'heartbeat' | 'debug' | 'webview' | 'validation';
 
 interface Props {
   initialParsedLog: ParsedLog;

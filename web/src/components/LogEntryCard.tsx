@@ -96,7 +96,7 @@ function formatJsonBody(body: string): string {
     }
 
     // Try to fix Dart-style maps to JSON (single quotes → double quotes, no quotes on keys)
-    let jsonAttempt = cleaned
+    const jsonAttempt = cleaned
       .replace(/(\w+):/g, '"$1":')
       .replace(/'/g, '"');
 
@@ -212,6 +212,12 @@ export default function LogEntryCard({ entry, isExpanded, onToggle }: Props) {
     return formatJsonBody(entry.body);
   }, [entry.body]);
 
+  // Extract base64 images from body
+  const base64Images = useMemo(() => {
+    if (!entry.body) return [];
+    return extractBase64Images(entry.body);
+  }, [entry.body]);
+
   // Check if body contains base64 (likely file upload)
   const isBase64Body = entry.body && entry.body.length > 500 && /^[A-Za-z0-9+/=\s]+$/.test(entry.body.replace(/\s/g, '').slice(-200));
   const truncatedBody = isBase64Body && entry.body ? entry.body.slice(0, 200) + '\n... [Base64 data truncated - ' + Math.round(entry.body.length / 1024) + 'KB]' : undefined;
@@ -222,14 +228,17 @@ export default function LogEntryCard({ entry, isExpanded, onToggle }: Props) {
     error: { icon: '❌', border: 'border-red-500/20', bg: 'bg-red-500/[0.03]', label: 'ERROR' },
     lifecycle: { icon: '🔄', border: 'border-purple-500/20', bg: 'bg-purple-500/[0.03]', label: 'LIFECYCLE' },
     heartbeat: { icon: '💓', border: 'border-pink-500/20', bg: 'bg-pink-500/[0.03]', label: 'HEARTBEAT' },
+    debug: { icon: '🐛', border: 'border-yellow-500/20', bg: 'bg-yellow-500/[0.03]', label: 'DEBUG' },
+    webview: { icon: '🌐', border: 'border-cyan-500/20', bg: 'bg-cyan-500/[0.03]', label: 'WEBVIEW' },
+    validation: { icon: '✅', border: 'border-orange-500/20', bg: 'bg-orange-500/[0.03]', label: 'VALIDATION' },
     info: { icon: 'ℹ️', border: 'border-gray-500/20', bg: 'bg-gray-500/[0.03]', label: 'INFO' },
     raw: { icon: '📝', border: 'border-gray-500/20', bg: 'bg-gray-500/[0.03]', label: 'RAW' },
   };
 
   const config = typeConfig[entry.type] || typeConfig.raw;
 
-  // Compact view for lifecycle/heartbeat
-  if (entry.type === 'lifecycle' || entry.type === 'heartbeat') {
+  // Compact view for lifecycle/heartbeat/webview/debug (single-line entries)
+  if (entry.type === 'lifecycle' || entry.type === 'heartbeat' || (entry.type === 'webview' && !isExpanded) || (entry.type === 'debug' && !entry.body?.includes('\n') && (entry.body?.length || 0) < 200)) {
     const stateColors: Record<string, string> = {
       'AppLifecycleState.resumed': 'text-emerald-400',
       'AppLifecycleState.inactive': 'text-yellow-400',
@@ -237,13 +246,34 @@ export default function LogEntryCard({ entry, isExpanded, onToggle }: Props) {
       'AppLifecycleState.hidden': 'text-gray-500',
     };
 
+    const heartbeatColors: Record<string, string> = {
+      'heartbeat_start': 'text-emerald-400',
+      'heartbeat_stop': 'text-orange-400',
+      'heartbeat_tick': 'text-pink-400',
+      'heartbeat_error': 'text-red-400',
+      'heartbeat_api_call': 'text-blue-400',
+    };
+
+    const bodyColor = entry.type === 'lifecycle' ? stateColors[entry.body || ''] || 'text-gray-400'
+      : entry.type === 'heartbeat' ? heartbeatColors[entry.subType || ''] || 'text-pink-400'
+      : entry.type === 'webview' ? 'text-cyan-400'
+      : 'text-yellow-400';
+
     return (
       <div className={`rounded-xl border ${config.border} ${config.bg} px-4 py-2 flex items-center gap-3`}>
         <span className="text-sm">{config.icon}</span>
-        <span className={`text-xs font-mono ${stateColors[entry.body || ''] || 'text-gray-400'}`}>
+        {entry.subType && (
+          <span className="text-[9px] font-medium text-gray-600 uppercase tracking-wider">
+            {entry.subType.replace(/_/g, ' ')}
+          </span>
+        )}
+        <span className={`text-xs font-mono ${bodyColor} truncate flex-1`}>
           {entry.body}
         </span>
-        <span className="text-[10px] text-gray-600">Line {entry.lineStart + 1}</span>
+        {entry.timestamp && (
+          <span className="text-[10px] text-gray-600 font-mono hidden lg:block">{entry.timestamp}</span>
+        )}
+        <span className="text-[10px] text-gray-600">L{entry.lineStart + 1}</span>
       </div>
     );
   }
@@ -352,6 +382,11 @@ export default function LogEntryCard({ entry, isExpanded, onToggle }: Props) {
                     : entry.body}
               </pre>
             </div>
+          )}
+
+          {/* Base64 Images */}
+          {base64Images.length > 0 && (
+            <Base64ImagePreview images={base64Images} />
           )}
 
           {/* Error Info */}

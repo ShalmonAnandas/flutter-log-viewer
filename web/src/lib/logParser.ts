@@ -5,7 +5,8 @@ export interface LogHeader {
 
 export interface LogEntry {
   id: string;
-  type: 'request' | 'response' | 'error' | 'lifecycle' | 'heartbeat' | 'info' | 'raw';
+  type: 'request' | 'response' | 'error' | 'lifecycle' | 'heartbeat' | 'info' | 'debug' | 'webview' | 'validation' | 'raw';
+  subType?: string; // e.g. 'heartbeat_tick', 'heartbeat_start', 'heartbeat_stop', 'state_listener', 'form_state', 'personal_details_keys', 'responsedata', 'webview_message', 'webview_page_load', 'debug_repo', 'validation_input'
   timestamp?: string;
   method?: string;
   url?: string;
@@ -160,17 +161,178 @@ export function parseFlutterLog(rawText: string): ParsedLog {
       continue;
     }
 
-    // Heartbeat events
-    if (stripped.includes('heartbeat timer') || stripped.includes('Heartbeat')) {
-      const heartbeatType = stripped.includes('Starting') ? 'start' : stripped.includes('Stopping') ? 'stop' : 'error';
+    // Heartbeat events (all variants)
+    const heartbeatTickMatch = stripped.match(/⏱\s*Heartbeat tick @ (.+)/);
+    if (heartbeatTickMatch) {
       entries.push({
         id: `entry-${entryId++}`,
         type: 'heartbeat',
+        subType: 'heartbeat_tick',
+        timestamp: heartbeatTickMatch[1].trim(),
         rawLines: [line],
         lineStart: i,
         lineEnd: i,
         body: stripped,
-        errorMessage: heartbeatType === 'error' ? stripped : undefined,
+      });
+      i++;
+      continue;
+    }
+
+    if (stripped.includes('Starting heartbeat timer') || stripped.includes('Stopping heartbeat timer') || stripped.includes('Heartbeat')) {
+      const subType = stripped.includes('Starting') ? 'heartbeat_start'
+        : stripped.includes('Stopping') ? 'heartbeat_stop'
+        : stripped.includes('error') ? 'heartbeat_error'
+        : stripped.includes('API call') ? 'heartbeat_api_call'
+        : 'heartbeat_info';
+      entries.push({
+        id: `entry-${entryId++}`,
+        type: 'heartbeat',
+        subType,
+        rawLines: [line],
+        lineStart: i,
+        lineEnd: i,
+        body: stripped,
+        errorMessage: subType === 'heartbeat_error' ? stripped : undefined,
+      });
+      i++;
+      continue;
+    }
+
+    // WebView messages
+    const webviewMsgMatch = stripped.match(/^Message from web:\s*(.*)/);
+    if (webviewMsgMatch) {
+      entries.push({
+        id: `entry-${entryId++}`,
+        type: 'webview',
+        subType: 'webview_message',
+        rawLines: [line],
+        lineStart: i,
+        lineEnd: i,
+        body: webviewMsgMatch[1].trim(),
+      });
+      i++;
+      continue;
+    }
+
+    const pageLoadMatch = stripped.match(/^Page loaded:\s*(.*)/);
+    if (pageLoadMatch) {
+      entries.push({
+        id: `entry-${entryId++}`,
+        type: 'webview',
+        subType: 'webview_page_load',
+        rawLines: [line],
+        lineStart: i,
+        lineEnd: i,
+        body: pageLoadMatch[1].trim(),
+      });
+      i++;
+      continue;
+    }
+
+    // Validation input data
+    if (stripped.startsWith('Validation input data:')) {
+      const rawLines = [line];
+      const startLine = i;
+      const bodyContent = stripped.replace('Validation input data:', '').trim();
+      i++;
+      entries.push({
+        id: `entry-${entryId++}`,
+        type: 'validation',
+        subType: 'validation_input',
+        rawLines,
+        lineStart: startLine,
+        lineEnd: i - 1,
+        body: bodyContent,
+      });
+      continue;
+    }
+
+    // PersonalDetails Keys
+    if (stripped.startsWith('PersonalDetails Keys:')) {
+      entries.push({
+        id: `entry-${entryId++}`,
+        type: 'debug',
+        subType: 'personal_details_keys',
+        rawLines: [line],
+        lineStart: i,
+        lineEnd: i,
+        body: stripped.replace('PersonalDetails Keys:', '').trim(),
+      });
+      i++;
+      continue;
+    }
+
+    // Standalone responsedata lines
+    if (stripped.startsWith('responsedata ')) {
+      entries.push({
+        id: `entry-${entryId++}`,
+        type: 'debug',
+        subType: 'responsedata',
+        rawLines: [line],
+        lineStart: i,
+        lineEnd: i,
+        body: stripped.replace('responsedata ', '').trim(),
+      });
+      i++;
+      continue;
+    }
+
+    // State listener lines
+    const listenerMatch = stripped.match(/^in listner state is (.+)/);
+    if (listenerMatch) {
+      entries.push({
+        id: `entry-${entryId++}`,
+        type: 'debug',
+        subType: 'state_listener',
+        rawLines: [line],
+        lineStart: i,
+        lineEnd: i,
+        body: listenerMatch[1].trim(),
+      });
+      i++;
+      continue;
+    }
+
+    // Debug repo calls
+    const debugMatch = stripped.match(/^(DEBUG:|rekyc debug:|FormState Debug|Pre-Dedupe Request Data Debug)(.*)/);
+    if (debugMatch) {
+      const rawLines = [line];
+      const startLine = i;
+      let bodyContent = (debugMatch[1] + debugMatch[2]).trim();
+      i++;
+      // Collect continuation lines that are indented debug info
+      while (i < lines.length) {
+        const next = lines[i]?.replace(/^I\/flutter\s*\(\d+\):\s?/, '');
+        if (next && (next.startsWith('  ') || next.startsWith('\t'))) {
+          bodyContent += '\n' + next;
+          rawLines.push(lines[i]);
+          i++;
+        } else {
+          break;
+        }
+      }
+      entries.push({
+        id: `entry-${entryId++}`,
+        type: 'debug',
+        subType: debugMatch[1].includes('rekyc') ? 'rekyc_debug' : debugMatch[1].includes('FormState') ? 'form_state' : 'debug_repo',
+        rawLines,
+        lineStart: startLine,
+        lineEnd: i - 1,
+        body: bodyContent,
+      });
+      continue;
+    }
+
+    // getStateList / repo debug calls
+    if (stripped.match(/^(getStateList|getCityList|getCountryList|getOccupation)/)) {
+      entries.push({
+        id: `entry-${entryId++}`,
+        type: 'debug',
+        subType: 'debug_repo',
+        rawLines: [line],
+        lineStart: i,
+        lineEnd: i,
+        body: stripped,
       });
       i++;
       continue;

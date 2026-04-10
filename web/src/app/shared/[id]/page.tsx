@@ -9,6 +9,8 @@ interface PageProps {
 export default async function SharedPage({ params }: PageProps) {
   const { id } = await params;
 
+  let logContent: string | null = null;
+
   try {
     const { blobs } = await list({ prefix: `logs/${id}` });
     const logBlob = blobs.find(b => b.pathname.endsWith('.txt'));
@@ -18,10 +20,14 @@ export default async function SharedPage({ params }: PageProps) {
     }
 
     const response = await fetch(logBlob.url);
-    const logContent = await response.text();
-
-    return <SharedLogViewer logContent={logContent} shareId={id} />;
+    logContent = await response.text();
   } catch {
     redirect('/');
   }
+
+  if (!logContent) {
+    redirect('/');
+  }
+
+  return <SharedLogViewer logContent={logContent} shareId={id} />;
 }
