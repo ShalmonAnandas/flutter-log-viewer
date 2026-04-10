@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Flutter Log Viewer
 
-## Getting Started
+A modern web platform for visualizing Flutter app logs with rich analytics, timeline views, and deep data inspection.
 
-First, run the development server:
+## Features
+
+- **📊 Rich Dashboard** — Status codes, response times, endpoint performance, error rates, lifecycle timeline
+- **🔍 Deep Analysis** — Filter by type (request, response, error, lifecycle, heartbeat, debug, webview, validation), search bodies, inspect headers
+- **🖼️ Base64 Image Rendering** — Detects and renders embedded JPEG/PNG images from log bodies with lightbox preview
+- **⏱️ Timeline View** — Request-response pair matching, waterfall chart, activity timeline
+- **🔗 Shareable Links** — Upload logs and generate unique shareable URLs via Vercel Blob Storage
+- **🔐 Optional Login** — Sign in to save logs for later viewing (auto-registration on first login)
+- **📱 Modern UI** — Dark theme, responsive design, smooth animations
+
+## Supported Log Patterns
+
+- HTTP Request/Response blocks with headers, bodies, extras
+- DioError blocks with exception details
+- App lifecycle events (resumed, inactive, paused, hidden)
+- Heartbeat timer events (start, stop, tick, API calls)
+- WebView messages and page loads
+- Debug/state listener messages
+- Validation input data
+- PersonalDetails keys
+- Base64-encoded images (JPEG `/9j/...` and PNG `iVBOR...`)
+- Dart map notation and JSON response bodies
+- File upload requests with document metadata
+
+## Deploy to Vercel
+
+1. Push this repository to GitHub
+2. Import the project on [Vercel](https://vercel.com)
+3. Set the **Root Directory** to `web`
+4. Add the following environment variable:
+   - `BLOB_READ_WRITE_TOKEN` — Create a Vercel Blob store and copy the token
+5. Deploy!
+
+## Local Development
 
 ```bash
+cd web
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **Note:** Sharing and saving features require `BLOB_READ_WRITE_TOKEN` to be set. Log viewing works fully without it.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tech Stack
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Next.js 16** (App Router)
+- **Tailwind CSS v4**
+- **Vercel Blob Storage** for shareable links and saved logs
+- **TypeScript** throughout
