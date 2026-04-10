@@ -18,8 +18,15 @@ function generateToken(): string {
   return randomBytes(32).toString('hex');
 }
 
-function hashPassword(password: string): string {
-  return createHash('sha256').update(password).digest('hex');
+function hashPassword(password: string, salt?: string): string {
+  const useSalt = salt || randomBytes(16).toString('hex');
+  const hash = createHash('sha256').update(useSalt + password).digest('hex');
+  return useSalt + ':' + hash;
+}
+
+function verifyPassword(password: string, stored: string): boolean {
+  const [salt] = stored.split(':');
+  return hashPassword(password, salt) === stored;
 }
 
 function cleanExpiredSessions(): void {
@@ -59,13 +66,12 @@ export function registerUser(username: string, password: string): boolean {
 }
 
 export function validateUser(username: string, password: string): boolean {
-  const hashed = hashPassword(password);
   // Allow registration on first login attempt
   if (!users[username]) {
-    users[username] = hashed;
+    users[username] = hashPassword(password);
     return true;
   }
-  return users[username] === hashed;
+  return verifyPassword(password, users[username]);
 }
 
 export { SESSION_COOKIE };
