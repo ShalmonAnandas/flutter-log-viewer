@@ -30,12 +30,12 @@ export async function POST(request: NextRequest) {
       contentType: 'text/plain',
     });
 
-    const encodedUrl = encodeURIComponent(blob.url);
+    const encodedBlobUrl = encodeURIComponent(blob.url);
 
     return NextResponse.json({
       shareId,
       url: blob.url,
-      shareUrl: `/shared/${shareId}?u=${encodedUrl}`,
+      shareUrl: `/shared/${shareId}?u=${encodedBlobUrl}`,
     });
   } catch (error) {
     console.error('Share error:', error);
