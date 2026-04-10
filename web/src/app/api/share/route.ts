@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     const shareId = uuidv4().slice(0, 8);
     const filename = `logs/${shareId}.txt`;
 
+    // Pass token explicitly to avoid environment resolution issues across local/dev/prod runtimes.
     const blob = await put(filename, file, {
       access: 'public',
       addRandomSuffix: false,

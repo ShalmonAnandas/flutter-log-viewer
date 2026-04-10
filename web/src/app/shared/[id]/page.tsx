@@ -23,8 +23,8 @@ export default async function SharedPage({ params, searchParams }: PageProps) {
     }
 
     if (!logContent) {
-      const { blobs } = await list({ prefix: `logs/${id}.txt` });
-      const logBlob = blobs.find(b => b.pathname.endsWith('.txt'));
+      const { blobs } = await list({ prefix: `logs/${id}` });
+      const logBlob = blobs.find(b => b.pathname === `logs/${id}.txt`) || blobs.find(b => b.pathname.endsWith('.txt'));
       if (!logBlob) {
         redirect('/');
       }
