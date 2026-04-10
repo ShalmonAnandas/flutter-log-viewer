@@ -30,7 +30,7 @@ A modern web platform for visualizing Flutter app logs with rich analytics, time
 
 1. Push this repository to GitHub
 2. Import the project on [Vercel](https://vercel.com)
-3. Keep the **Root Directory** at the repository root. The included root `package.json` and `vercel.json` forward install/build commands to `web/`, where the actual Next.js app lives.
+3. Set the **Root Directory** to `web` (the subdirectory containing the Next.js app)
 4. Add the following environment variable:
    - `BLOB_READ_WRITE_TOKEN` — Create a Vercel Blob store and copy the token
 5. Deploy!
