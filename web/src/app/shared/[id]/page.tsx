@@ -21,7 +21,8 @@ export default async function SharedPage({ params }: PageProps) {
 
     const response = await fetch(logBlob.url);
     logContent = await response.text();
-  } catch {
+  } catch (error) {
+    console.error('Failed to load shared log:', error);
     redirect('/');
   }
 

@@ -277,7 +277,7 @@ export function parseFlutterLog(rawText: string): ParsedLog {
       continue;
     }
 
-    // State listener lines
+    // State listener lines (note: "listner" is misspelled in the actual Flutter log output)
     const listenerMatch = stripped.match(/^in listner state is (.+)/);
     if (listenerMatch) {
       entries.push({

@@ -62,7 +62,8 @@ export async function GET() {
         try {
           const res = await fetch(blob.url);
           return await res.json();
-        } catch {
+        } catch (error) {
+          console.error(`Failed to fetch metadata for ${blob.pathname}:`, error);
           return null;
         }
       })
