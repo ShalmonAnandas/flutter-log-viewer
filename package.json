@@ -1,0 +1,14 @@
+{
+  "name": "flutter-log-viewer",
+  "private": true,
+  "description": "Root package for Vercel deployment detection. The Next.js app lives in web/.",
+  "scripts": {
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "start": "npm --prefix web run start",
+    "lint": "npm --prefix web run lint"
+  },
+  "devDependencies": {
+    "next": "16.2.3"
+  }
+}
