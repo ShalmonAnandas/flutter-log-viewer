@@ -4,6 +4,14 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: NextRequest) {
   try {
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    if (!blobToken) {
+      return NextResponse.json(
+        { error: 'Sharing is not configured. Missing BLOB_READ_WRITE_TOKEN.' },
+        { status: 500 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
@@ -17,12 +25,16 @@ export async function POST(request: NextRequest) {
     const blob = await put(filename, file, {
       access: 'public',
       addRandomSuffix: false,
+      token: blobToken,
+      contentType: 'text/plain',
     });
+
+    const encodedUrl = encodeURIComponent(blob.url);
 
     return NextResponse.json({
       shareId,
       url: blob.url,
-      shareUrl: `/shared/${shareId}`,
+      shareUrl: `/shared/${shareId}?u=${encodedUrl}`,
     });
   } catch (error) {
     console.error('Share error:', error);

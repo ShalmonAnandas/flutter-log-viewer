@@ -8,339 +8,134 @@ interface Props {
   stats: LogStats;
 }
 
-function WaterfallBar({ entry, maxTime, index }: { entry: LogEntry; maxTime: number; index: number }) {
-  const time = entry.responseTime || 0;
-  const pct = maxTime > 0 ? (time / maxTime) * 100 : 0;
+function formatDuration(ms: number) {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
+}
 
-  const getColor = () => {
-    if (entry.type === 'error') return 'bg-red-500';
-    if (entry.statusCode && entry.statusCode >= 500) return 'bg-red-500';
-    if (entry.statusCode && entry.statusCode >= 400) return 'bg-orange-500';
-    if (time > 10000) return 'bg-red-400';
-    if (time > 5000) return 'bg-orange-400';
-    if (time > 2000) return 'bg-yellow-400';
-    return 'bg-emerald-400';
-  };
-
-  const endpoint = entry.url?.replace(/https?:\/\/[^/]+/, '').split('/').pop() || '';
-
-  return (
-    <div className="flex items-center gap-2 group hover:bg-white/[0.02] px-3 py-1 rounded-lg transition-colors">
-      <span className="text-[10px] text-gray-600 w-6 text-right font-mono">{index + 1}</span>
-
-      <span className={`text-[10px] w-10 text-center font-mono rounded px-1 py-0.5 ${
-        entry.type === 'request' ? 'text-blue-400 bg-blue-500/10' :
-        entry.type === 'error' ? 'text-red-400 bg-red-500/10' :
-        'text-emerald-400 bg-emerald-500/10'
-      }`}>
-        {entry.method || entry.type.toUpperCase().slice(0, 4)}
-      </span>
-
-      {entry.statusCode !== undefined && (
-        <span className={`text-[10px] w-8 text-center font-mono ${
-          entry.statusCode < 300 ? 'text-emerald-400' :
-          entry.statusCode < 400 ? 'text-yellow-400' :
-          'text-red-400'
-        }`}>
-          {entry.statusCode}
-        </span>
-      )}
-      {entry.statusCode === undefined && <span className="w-8" />}
-
-      <div className="flex-1 h-4 rounded bg-white/[0.03] overflow-hidden relative">
-        <div
-          className={`h-full rounded ${getColor()} opacity-70 transition-all duration-500`}
-          style={{ width: `${Math.max(pct, 1)}%` }}
-        />
-        <span className="absolute inset-0 flex items-center px-2 text-[9px] font-mono text-white/60 truncate">
-          {endpoint}
-        </span>
-      </div>
-
-      <span className="text-[10px] font-mono text-gray-500 w-14 text-right">
-        {time >= 1000 ? `${(time / 1000).toFixed(1)}s` : `${time}ms`}
-      </span>
-
-      {/* Tooltip */}
-      <div className="absolute left-20 -top-8 hidden group-hover:block z-10 pointer-events-none">
-        <div className="bg-[#1a1a2e] border border-white/10 rounded-lg px-3 py-2 text-[10px] shadow-xl whitespace-nowrap">
-          <span className="text-gray-400 break-all">{entry.url}</span>
-        </div>
-      </div>
-    </div>
-  );
+function statusTone(statusCode?: number) {
+  if (statusCode === undefined) return 'bg-slate-100 text-slate-600';
+  if (statusCode < 300) return 'bg-emerald-50 text-emerald-700';
+  if (statusCode < 400) return 'bg-amber-50 text-amber-700';
+  return 'bg-rose-50 text-rose-700';
 }
 
 export default function TimelineView({ entries, stats }: Props) {
   const [showOnlyNetwork, setShowOnlyNetwork] = useState(true);
 
-  const networkEntries = useMemo(() => {
-    if (showOnlyNetwork) {
-      return entries.filter(e => e.type === 'request' || e.type === 'response' || e.type === 'error');
-    }
-    return entries;
+  const timelineEntries = useMemo(() => {
+    const list = showOnlyNetwork
+      ? entries.filter(e => e.type === 'request' || e.type === 'response' || e.type === 'error')
+      : entries;
+    return list.slice().sort((a, b) => a.lineStart - b.lineStart);
   }, [entries, showOnlyNetwork]);
 
-  const responsesAndErrors = useMemo(() => {
-    return entries.filter(e => (e.type === 'response' || e.type === 'error') && e.responseTime !== undefined);
-  }, [entries]);
+  const responseEntries = useMemo(
+    () => timelineEntries.filter(e => (e.type === 'response' || e.type === 'error') && e.responseTime !== undefined),
+    [timelineEntries]
+  );
 
-  const maxTime = stats.maxResponseTime || 1;
+  const maxTime = Math.max(stats.maxResponseTime || 0, 1);
 
-  // Group entries by timestamp proximity for request-response pairing
-  const pairs = useMemo(() => {
-    const result: { request?: LogEntry; response?: LogEntry; error?: LogEntry }[] = [];
-    const requests = entries.filter(e => e.type === 'request');
-
-    for (const req of requests) {
-      // Find the closest response with matching URL
-      const matchingResponses = entries.filter(e =>
-        (e.type === 'response' || e.type === 'error') &&
-        e.url === req.url &&
-        e.lineStart > req.lineStart &&
-        e.lineStart < req.lineStart + 500
-      );
-
-      if (matchingResponses.length > 0) {
-        const res = matchingResponses[0];
-        result.push({
-          request: req,
-          response: res.type === 'response' ? res : undefined,
-          error: res.type === 'error' ? res : undefined,
-        });
-      } else {
-        result.push({ request: req });
-      }
-    }
-
-    return result;
-  }, [entries]);
-
-  // Build timeline segments from request extras timestamps
-  const timeSegments = useMemo(() => {
-    const segments: { time: string; entries: LogEntry[] }[] = [];
-    let currentTime = '';
-    let currentEntries: LogEntry[] = [];
-
-    for (const entry of entries) {
+  const activityByMinute = useMemo(() => {
+    const buckets = new Map<string, number>();
+    for (const entry of timelineEntries) {
       const ts = entry.timestamp || entry.extras?.startTime;
-      if (ts) {
-        const minute = ts.substring(0, 16); // YYYY-MM-DD HH:MM
-        if (minute !== currentTime) {
-          if (currentEntries.length > 0) {
-            segments.push({ time: currentTime, entries: currentEntries });
-          }
-          currentTime = minute;
-          currentEntries = [entry];
-        } else {
-          currentEntries.push(entry);
-        }
-      } else {
-        currentEntries.push(entry);
-      }
+      if (!ts || ts.length < 16) continue;
+      const minute = ts.substring(0, 16);
+      buckets.set(minute, (buckets.get(minute) || 0) + 1);
     }
-    if (currentEntries.length > 0) {
-      segments.push({ time: currentTime || 'Unknown', entries: currentEntries });
-    }
-    return segments;
-  }, [entries]);
+    return Array.from(buckets.entries()).map(([minute, count]) => ({ minute, count }));
+  }, [timelineEntries]);
+
+  const maxBucket = Math.max(...activityByMinute.map(b => b.count), 1);
 
   return (
-    <div className="space-y-6">
-      {/* Controls */}
-      <div className="flex items-center gap-4">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">Timeline</h2>
+          <p className="text-xs text-slate-500">Cleaner chronological view of log activity and latency.</p>
+        </div>
         <button
           onClick={() => setShowOnlyNetwork(!showOnlyNetwork)}
-          className={`px-4 py-2 rounded-xl text-sm border transition-all ${
-            showOnlyNetwork
-              ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-              : 'bg-white/5 border-white/10 text-gray-400'
-          }`}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
         >
-          {showOnlyNetwork ? '🔗 Network Only' : '📋 All Events'}
+          {showOnlyNetwork ? 'Showing network only' : 'Showing all events'}
         </button>
       </div>
 
-      {/* Request-Response Pairs */}
-      <div className="rounded-2xl border border-white/5 bg-[#12121a] p-5">
-        <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-          <span className="w-1 h-4 rounded-full bg-blue-500"></span>
-          Request → Response Pairs ({pairs.length})
-        </h3>
-        <div className="space-y-2">
-          {pairs.map((pair, idx) => (
-            <div key={idx} className="flex items-stretch gap-1 group">
-              {/* Request */}
-              <div className="flex-1 rounded-l-xl bg-blue-500/5 border border-blue-500/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-blue-400 bg-blue-500/20 px-1.5 py-0.5 rounded">
-                    {pair.request?.method}
-                  </span>
-                  <span className="text-[10px] font-mono text-gray-400 truncate">
-                    {pair.request?.url?.replace(/https?:\/\/[^/]+/, '')}
-                  </span>
-                </div>
-                {pair.request?.timestamp && (
-                  <span className="text-[9px] text-gray-600 font-mono mt-0.5 block">
-                    {pair.request.timestamp}
-                  </span>
-                )}
-              </div>
-
-              {/* Arrow */}
-              <div className="flex items-center px-2">
-                <span className={`text-xs ${
-                  pair.error ? 'text-red-400' : pair.response ? 'text-emerald-400' : 'text-gray-600'
-                }`}>→</span>
-              </div>
-
-              {/* Response */}
-              <div className={`flex-1 rounded-r-xl px-3 py-2 border ${
-                pair.error
-                  ? 'bg-red-500/5 border-red-500/10'
-                  : pair.response
-                    ? 'bg-emerald-500/5 border-emerald-500/10'
-                    : 'bg-gray-500/5 border-gray-500/10'
-              }`}>
-                {pair.response || pair.error ? (
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                      pair.error
-                        ? 'text-red-400 bg-red-500/20'
-                        : (pair.response?.statusCode || 0) < 300
-                          ? 'text-emerald-400 bg-emerald-500/20'
-                          : 'text-yellow-400 bg-yellow-500/20'
-                    }`}>
-                      {pair.error?.statusCode || pair.response?.statusCode}
-                    </span>
-                    <span className={`text-[10px] font-mono ${
-                      (pair.error?.responseTime || pair.response?.responseTime || 0) > 3000
-                        ? 'text-orange-400' : 'text-gray-400'
-                    }`}>
-                      {(pair.error?.responseTime || pair.response?.responseTime || 0) >= 1000
-                        ? `${((pair.error?.responseTime || pair.response?.responseTime || 0) / 1000).toFixed(1)}s`
-                        : `${pair.error?.responseTime || pair.response?.responseTime || 0}ms`
-                      }
-                    </span>
-                    {pair.error && (
-                      <span className="text-[9px] text-red-400">ERROR</span>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-[10px] text-gray-600">No response</span>
-                )}
-              </div>
-            </div>
-          ))}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-800">Chronological events</h3>
+          <span className="text-xs text-slate-500">{timelineEntries.length} items</span>
         </div>
-      </div>
-
-      {/* Waterfall Chart */}
-      <div className="rounded-2xl border border-white/5 bg-[#12121a] p-5">
-        <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-          <span className="w-1 h-4 rounded-full bg-yellow-500"></span>
-          Response Time Waterfall ({responsesAndErrors.length})
-        </h3>
-        <div className="space-y-0.5">
-          {responsesAndErrors.map((entry, idx) => (
-            <WaterfallBar key={entry.id} entry={entry} maxTime={maxTime} index={idx} />
-          ))}
-        </div>
-      </div>
-
-      {/* Time Segments */}
-      {timeSegments.length > 1 && (
-        <div className="rounded-2xl border border-white/5 bg-[#12121a] p-5">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-            <span className="w-1 h-4 rounded-full bg-cyan-500"></span>
-            Activity Timeline
-          </h3>
-          <div className="space-y-4">
-            {timeSegments.map((seg, idx) => {
-              const networkCount = seg.entries.filter(e => e.type === 'request' || e.type === 'response' || e.type === 'error').length;
-              const lifecycleCount = seg.entries.filter(e => e.type === 'lifecycle').length;
-              const debugCount = seg.entries.filter(e => e.type === 'debug' || e.type === 'info' || e.type === 'webview' || e.type === 'validation').length;
-
-              return (
-                <div key={idx} className="flex items-start gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className="w-3 h-3 rounded-full bg-cyan-500 border-2 border-[#12121a] z-10"></div>
-                    {idx < timeSegments.length - 1 && <div className="w-0.5 flex-1 bg-white/5 min-h-[30px]"></div>}
-                  </div>
-                  <div className="flex-1 pb-4">
-                    <span className="text-xs font-mono text-cyan-400">{seg.time || 'Start'}</span>
-                    <div className="flex gap-2 mt-1 flex-wrap">
-                      {networkCount > 0 && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                          {networkCount} network
-                        </span>
-                      )}
-                      {lifecycleCount > 0 && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                          {lifecycleCount} lifecycle
-                        </span>
-                      )}
-                      {debugCount > 0 && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-                          {debugCount} debug
-                        </span>
-                      )}
-                      <span className="text-[10px] text-gray-600">
-                        {seg.entries.length} total
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Event Stream (if showing all) */}
-      {!showOnlyNetwork && (
-        <div className="rounded-2xl border border-white/5 bg-[#12121a] p-5">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-            <span className="w-1 h-4 rounded-full bg-purple-500"></span>
-            Full Event Stream ({networkEntries.length})
-          </h3>
-          <div className="space-y-1 max-h-[600px] overflow-auto">
-            {networkEntries.map((entry, idx) => {
-              const typeColors: Record<string, string> = {
-                request: 'text-blue-400 bg-blue-500/10',
-                response: 'text-emerald-400 bg-emerald-500/10',
-                error: 'text-red-400 bg-red-500/10',
-                lifecycle: 'text-purple-400 bg-purple-500/10',
-                heartbeat: 'text-pink-400 bg-pink-500/10',
-                debug: 'text-yellow-400 bg-yellow-500/10',
-                webview: 'text-cyan-400 bg-cyan-500/10',
-                validation: 'text-orange-400 bg-orange-500/10',
-                info: 'text-gray-400 bg-gray-500/10',
-                raw: 'text-gray-500 bg-gray-500/5',
-              };
-
-              return (
-                <div key={entry.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/[0.02] text-[10px]">
-                  <span className="text-gray-600 w-6 text-right font-mono">{idx + 1}</span>
-                  <span className={`px-1.5 py-0.5 rounded font-medium uppercase tracking-wider w-20 text-center ${typeColors[entry.type] || ''}`}>
-                    {entry.subType?.split('_')[0] || entry.type}
-                  </span>
-                  <span className="font-mono text-gray-400 truncate flex-1">
-                    {entry.url?.replace(/https?:\/\/[^/]+/, '') || entry.body?.substring(0, 80) || ''}
+        <div className="max-h-[520px] overflow-auto pr-1">
+          <div className="space-y-2">
+            {timelineEntries.map((entry, index) => (
+              <div key={entry.id} className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-mono text-slate-500">#{index + 1}</span>
+                  <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-blue-700">
+                    {entry.method || entry.type}
                   </span>
                   {entry.statusCode !== undefined && (
-                    <span className={`font-mono ${entry.statusCode < 300 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${statusTone(entry.statusCode)}`}>
                       {entry.statusCode}
                     </span>
                   )}
                   {entry.responseTime !== undefined && (
-                    <span className="font-mono text-gray-500 w-14 text-right">
-                      {entry.responseTime >= 1000 ? `${(entry.responseTime / 1000).toFixed(1)}s` : `${entry.responseTime}ms`}
-                    </span>
+                    <span className="text-[11px] font-mono text-slate-600">{formatDuration(entry.responseTime)}</span>
                   )}
+                  <span className="ml-auto text-[10px] font-mono text-slate-500">{entry.timestamp || 'no timestamp'}</span>
                 </div>
-              );
-            })}
+                {(entry.url || entry.body) && (
+                  <p className="mt-1 truncate text-xs text-slate-700">
+                    {entry.url?.replace(/https?:\/\/[^/]+/, '') || entry.body?.replace(/\s+/g, ' ')}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-800">Response latency</h3>
+          <span className="text-xs text-slate-500">{responseEntries.length} responses/errors</span>
+        </div>
+        <div className="space-y-2">
+          {responseEntries.map((entry) => {
+            const width = Math.max(((entry.responseTime || 0) / maxTime) * 100, 1);
+            return (
+              <div key={entry.id} className="grid grid-cols-[70px_1fr_70px] items-center gap-2">
+                <span className="text-[10px] font-mono text-slate-500">{entry.statusCode ?? '--'}</span>
+                <div className="h-5 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full ${entry.type === 'error' ? 'bg-rose-400' : 'bg-blue-400'}`}
+                    style={{ width: `${width}%` }}
+                  />
+                </div>
+                <span className="text-right text-[10px] font-mono text-slate-600">{formatDuration(entry.responseTime || 0)}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {activityByMinute.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-slate-800">Activity by minute</h3>
+          <div className="space-y-2">
+            {activityByMinute.map((bucket) => (
+              <div key={bucket.minute} className="grid grid-cols-[130px_1fr_50px] items-center gap-2">
+                <span className="text-[10px] font-mono text-slate-500">{bucket.minute}</span>
+                <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-indigo-400" style={{ width: `${(bucket.count / maxBucket) * 100}%` }} />
+                </div>
+                <span className="text-right text-[10px] text-slate-600">{bucket.count}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
