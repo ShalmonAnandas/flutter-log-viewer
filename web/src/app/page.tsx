@@ -76,7 +76,8 @@ export default function Home() {
       } else {
         setShareError(data.error);
       }
-    } catch {
+    } catch (err) {
+      console.error('Share failed:', err);
       setShareError('Failed to share. Ensure BLOB_READ_WRITE_TOKEN is configured on Vercel.');
     }
   };
@@ -94,7 +95,9 @@ export default function Home() {
         const data = await res.json();
         setSavedLogs(prev => [{ ...data, createdAt: new Date().toISOString(), blobUrl: data.url }, ...prev]);
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Save failed:', err);
+    }
   };
 
   const loadSavedLog = async (log: { blobUrl: string; name: string }) => {
@@ -106,7 +109,9 @@ export default function Home() {
       setFileName(log.name);
       const parsed = parseFlutterLog(text);
       setParsedLog(parsed);
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Failed to load saved log:', err);
+    }
     setIsLoading(false);
   };
 
