@@ -89,7 +89,7 @@ export default function LogViewerApp({ initialParsedLog, shareId, isShared }: Pr
   }, [parsed.entries]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-gray-100">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <Header
         deviceInfo={parsed.deviceInfo}
         shareId={shareId}
@@ -97,7 +97,7 @@ export default function LogViewerApp({ initialParsedLog, shareId, isShared }: Pr
       />
 
       {/* Tab Navigation */}
-      <div className="sticky top-0 z-40 bg-[#0a0a0f]/95 backdrop-blur-xl border-b border-white/5">
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-200">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6">
           <div className="flex items-center gap-1 py-2">
             {(['dashboard', 'logs', 'timeline'] as Tab[]).map(tab => (
@@ -106,8 +106,8 @@ export default function LogViewerApp({ initialParsedLog, shareId, isShared }: Pr
                 onClick={() => setActiveTab(tab)}
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                   activeTab === tab
-                    ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/10'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
                 }`}
               >
                 {tab === 'dashboard' && '📊 '}
@@ -156,8 +156,8 @@ export default function LogViewerApp({ initialParsedLog, shareId, isShared }: Pr
               {filteredEntries.length === 0 && (
                 <div className="text-center py-20 text-gray-500">
                   <div className="text-5xl mb-4">🔍</div>
-                  <p className="text-lg">No log entries match your filters</p>
-                  <p className="text-sm mt-2">Try adjusting your search or filter criteria</p>
+                  <p className="text-lg text-slate-700">No log entries match your filters</p>
+                  <p className="text-sm mt-2 text-slate-500">Try adjusting your search or filter criteria</p>
                 </div>
               )}
             </div>

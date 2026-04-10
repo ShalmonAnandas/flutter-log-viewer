@@ -119,28 +119,28 @@ export default function Home() {
   if (parsedLog) {
     return (
       <div>
-        <div className="bg-[#0a0a0f] border-b border-white/5 px-4 sm:px-6 py-2">
+        <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-2">
           <div className="max-w-[1800px] mx-auto flex items-center gap-3 flex-wrap">
             <button
               onClick={() => { setParsedLog(null); setShareUrl(null); }}
-              className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-xs border border-white/10 transition-all flex items-center gap-1.5"
+               className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-xs border border-slate-200 transition-all flex items-center gap-1.5"
             >
               ← New Log
             </button>
-            <span className="text-xs text-gray-600 font-mono">{fileName}</span>
+            <span className="text-xs text-slate-500 font-mono">{fileName}</span>
 
             <div className="ml-auto flex items-center gap-2">
               {user && (
                 <button
                   onClick={handleSave}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs border border-emerald-500/20 transition-all"
+                   className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs border border-emerald-200 transition-all"
                 >
                   💾 Save
                 </button>
               )}
               <button
                 onClick={handleShare}
-                className="px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-xs border border-purple-500/20 transition-all"
+                 className="px-3 py-1.5 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs border border-violet-200 transition-all"
               >
                 🔗 Share
               </button>
@@ -148,18 +148,18 @@ export default function Home() {
 
             {shareUrl && (
               <div className="w-full flex items-center gap-2 mt-1">
-                <span className="text-xs text-emerald-400">✓ Copied to clipboard!</span>
+                 <span className="text-xs text-emerald-700">✓ Copied to clipboard!</span>
                 <input
                   readOnly
                   value={shareUrl}
-                  className="flex-1 px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-mono text-gray-400"
+                   className="flex-1 px-3 py-1 rounded-lg bg-slate-50 border border-slate-300 text-xs font-mono text-slate-600"
                   onClick={e => (e.target as HTMLInputElement).select()}
                 />
               </div>
             )}
             {shareError && (
               <div className="w-full mt-1">
-                <span className="text-xs text-red-400">{shareError}</span>
+                 <span className="text-xs text-red-600">{shareError}</span>
               </div>
             )}
           </div>
@@ -171,21 +171,21 @@ export default function Home() {
 
   // Upload page
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-gray-100">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <Header />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
         {/* Hero */}
         <div className="text-center mb-12">
-          <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-blue-500/20 mb-6">
+          <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/20 mb-6">
             <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-3">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 bg-clip-text text-transparent mb-3">
             Flutter Log Viewer
           </h1>
-          <p className="text-gray-500 text-lg max-w-lg mx-auto">
+          <p className="text-slate-500 text-lg max-w-lg mx-auto">
             Upload your Flutter log files and visualize every data point with advanced analytics, timeline views, and beautiful formatting.
           </p>
         </div>
@@ -197,31 +197,31 @@ export default function Home() {
           onDrop={handleFileDrop}
           className={`relative rounded-2xl border-2 border-dashed p-16 text-center transition-all duration-300 cursor-pointer ${
             isDragging
-              ? 'border-blue-500 bg-blue-500/5 shadow-2xl shadow-blue-500/10'
-              : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
+                ? 'border-blue-400 bg-blue-50 shadow-lg shadow-blue-200/60'
+                : 'border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50'
           }`}
           onClick={() => document.getElementById('fileInput')?.click()}
         >
           {isLoading ? (
             <div className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-gray-400">Parsing log file...</p>
+               <p className="text-slate-600">Parsing log file...</p>
             </div>
           ) : (
             <>
               <div className="flex flex-col items-center gap-4">
                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all ${
-                  isDragging ? 'bg-blue-500/20' : 'bg-white/5'
+                  isDragging ? 'bg-blue-100' : 'bg-slate-100'
                 }`}>
-                  <svg className={`w-8 h-8 transition-colors ${isDragging ? 'text-blue-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className={`w-8 h-8 transition-colors ${isDragging ? 'text-blue-500' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-lg font-medium text-gray-300">
+                   <p className="text-lg font-medium text-slate-700">
                     Drop your Flutter log file here
                   </p>
-                  <p className="text-sm text-gray-600 mt-1">
+                   <p className="text-sm text-slate-500 mt-1">
                     or click to browse • Supports .txt files
                   </p>
                 </div>
@@ -244,10 +244,10 @@ export default function Home() {
             { icon: '🔍', title: 'Deep Analysis', desc: 'Filter by type, search bodies, inspect headers, view base64 images' },
             { icon: '🔗', title: 'Share & Save', desc: 'Generate shareable links, save logs with optional login' },
           ].map((f, i) => (
-            <div key={i} className="rounded-xl border border-white/5 bg-white/[0.02] p-5">
+            <div key={i} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <span className="text-2xl">{f.icon}</span>
-              <h3 className="text-sm font-semibold text-gray-300 mt-3">{f.title}</h3>
-              <p className="text-xs text-gray-600 mt-1">{f.desc}</p>
+              <h3 className="text-sm font-semibold text-slate-700 mt-3">{f.title}</h3>
+              <p className="text-xs text-slate-500 mt-1">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -255,7 +255,7 @@ export default function Home() {
         {/* Saved Logs */}
         {user && savedLogs.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-lg font-semibold text-gray-300 mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-slate-700 mb-4 flex items-center gap-2">
               📂 Your Saved Logs
             </h2>
             <div className="space-y-2">
@@ -263,11 +263,11 @@ export default function Home() {
                 <button
                   key={i}
                   onClick={() => loadSavedLog(log)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-all text-left"
+                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-all text-left"
                 >
-                  <span className="text-gray-600">📄</span>
-                  <span className="text-sm text-gray-300 flex-1">{log.name}</span>
-                  <span className="text-xs text-gray-600">{new Date(log.createdAt).toLocaleDateString()}</span>
+                   <span className="text-slate-500">📄</span>
+                   <span className="text-sm text-slate-700 flex-1">{log.name}</span>
+                   <span className="text-xs text-slate-500">{new Date(log.createdAt).toLocaleDateString()}</span>
                 </button>
               ))}
             </div>
